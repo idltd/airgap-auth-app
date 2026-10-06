@@ -3,14 +3,24 @@ import * as vault from './vault.js';
 
 export function createPeerUI({unlock,run,message,onChange,scan,canStart}){
   const $=id=>document.getElementById(id);
-  let state=null;
+  let state=null,contacts=[];
+  // Size the QR around the current instructions and controls, including status text.
+  function fitQR(){
+    if($('peer-flow').hidden||$('peer-output').hidden)return;
+    const qr=$('peer-qr'),rect=qr.getBoundingClientRect();
+    const available=innerHeight-($('peer-flow').getBoundingClientRect().bottom+scrollY-rect.height)-12;
+    const width=Math.max(180,Math.min(320,$('peer-output').clientWidth,available));
+    if(Math.abs(rect.width-width)>1)qr.style.width=width+'px';
+  }
+  new ResizeObserver(()=>requestAnimationFrame(fitQR)).observe(document.body);
+  window.addEventListener('resize',fitQR);
   const label=()=>{
     const value=$('peer-contact-label').value.trim();
     if(!value||new TextEncoder().encode(value).length>80)throw Error('Choose a contact name of up to 80 UTF-8 bytes');
     return value;
   };
   const myName=()=>{
-    const value=$('peer-my-name').value.trim();
+    const value=($('peer-flow').hidden||$('peer-own-name-fields').hidden?$('peer-my-name'):$('peer-reply-name')).value.trim();
     if(!value||new TextEncoder().encode(value).length>80)throw Error('Enter your name before pairing');
     return value;
   };
@@ -24,13 +34,15 @@ export function createPeerUI({unlock,run,message,onChange,scan,canStart}){
     $('peer-qr').replaceChildren(document.importNode(svg.documentElement,true));
     $('peer-qr-text').value=text;
     $('peer-output').hidden=false;
+    requestAnimationFrame(fitQR);
   }
-  function screen(title,instructions,{approve='',scanning=false,contact='',check='',match=false}={}){
-    $('peer-flow').hidden=false;$('peer-title').textContent=title;$('peer-instructions').textContent=instructions;
+  function screen(title,instructions,{approve='',scanning=false,contact='',check='',match=false,ownName=false}={}){
+    message('');document.body.classList.add('people-mode');$('peer-flow').hidden=false;$('peer-title').textContent=title;$('peer-instructions').textContent=instructions;
     $('peer-approve').textContent=approve;$('peer-approve').hidden=!approve;
     $('peer-scan-next').hidden=!scanning;
     $('peer-contact-fields').hidden=!contact;
     if(contact)$('peer-contact-label').value=contact;
+    $('peer-own-name-fields').hidden=!ownName;if(ownName)$('peer-reply-name').value=$('peer-my-name').value;
     $('peer-check').textContent=check;$('peer-comparison').hidden=!check;
     $('peer-match-fields').hidden=!match;$('peer-matches').checked=false;
     $('peer-output').hidden=true;$('peer-qr').replaceChildren();$('peer-qr-text').value='';
@@ -38,7 +50,7 @@ export function createPeerUI({unlock,run,message,onChange,scan,canStart}){
     $('peer-countdown').textContent='';
     $('peer-approve').disabled=false;
     onChange();
-    requestAnimationFrame(()=>$('peer-flow').scrollIntoView({behavior:'smooth',block:'start'}));
+    requestAnimationFrame(()=>{window.scrollTo(0,0);$('peer-title').focus({preventScroll:true});});
   }
   function contactRecord(id,remote,localLabel){return {peerId:remote.fromKeyId,ownKeyId:id.keyId,ownPublic:id.publicKey,peerPublic:remote.fromPublic,label:localLabel,createdAt:p.now()};}
   async function startPair(){
@@ -48,7 +60,7 @@ export function createPeerUI({unlock,run,message,onChange,scan,canStart}){
     const invite=await p.sign(id.privateKey,{...p.base('peer-pair-invite',id.keyId,p.random(16),expiresAt),fromPublic:id.publicKey,fromName:name});
     const sealed=await vault.sealPeerDraft(key,id);
     state={stage:'pair-offer',invite,sealed,expiresAt};
-    screen('Pair a new phone','Ask the other person to open People, enter their name, and scan this QR. Then scan the reply on their phone.',{scanning:true});
+    screen('Pair a new phone','Let them scan this QR from People. Then scan their reply.',{scanning:true});
     await display(invite);
   }
   async function startVerify(c){
@@ -64,11 +76,10 @@ export function createPeerUI({unlock,run,message,onChange,scan,canStart}){
     if(state)live(state);
     if(o.kind==='peer-pair-invite'){
       if(state)throw Error('Finish or cancel the current exchange first');
-      myName();
       if(!await p.verify(o.fromPublic,o))throw Error('Pairing QR signature is invalid');
       if((await vault.peers()).some(c=>c.peerId===o.fromKeyId))throw Error('This pairing is already saved. Use Verify for that contact.');
       state={stage:'pair-invite-review',invite:o,expiresAt:o.expiresAt};
-      screen('New pairing request','This is a new, untrusted identity claiming the name “'+o.fromName+'”. Only accept while pairing with the intended person. Choose the contact name you want to save.',{contact:o.fromName,approve:'Accept pairing and show my reply'});
+      screen('New pairing request','New, untrusted identity: “'+o.fromName+'”. Accept only with the intended person present.',{contact:o.fromName,ownName:true,approve:'Accept and show reply'});
       return;
     }
     if(o.kind==='peer-pair-response'){
@@ -77,7 +88,7 @@ export function createPeerUI({unlock,run,message,onChange,scan,canStart}){
       await p.requireReply(o,current.invite,'peer-pair-response',o.fromPublic,'inviteHash');live(current);
       if(o.fromKeyId===current.invite.fromKeyId)throw Error('Cannot pair a key with itself');
       current.response=o;current.check=await p.checkCode(current.invite,o);current.stage='pair-review';
-      screen('Compare both screens','Ask the other person to read their check code. Both codes must match exactly before you save this contact.',{contact:o.fromName,check:current.check,match:true,approve:'Codes match — save and show final QR'});
+      screen('Compare both screens','Compare the full code together. Save only if both codes match exactly.',{contact:o.fromName,check:current.check,match:true,approve:'Save and show final QR'});
       return;
     }
     if(o.kind==='peer-pair-confirm'){
@@ -124,13 +135,14 @@ export function createPeerUI({unlock,run,message,onChange,scan,canStart}){
   async function approve(){
     const current=state;live(current);
     if(['pair-review','pair-final-review'].includes(current.stage)&&!$('peer-matches').checked)throw Error('Compare the check codes on both phones and confirm that they match');
+    if(current.stage==='pair-invite-review')myName();
     const chosenLabel=['pair-invite-review','pair-review'].includes(current.stage)?label():current.label;
     const key=await unlock('Approve phone-to-phone exchange');live(current);
     if(current.stage==='pair-invite-review'){
       const id=await p.identity(),invite=current.invite;
       const response=await p.sign(id.privateKey,{...p.base('peer-pair-response',id.keyId,invite.sessionId,invite.expiresAt),toKeyId:invite.fromKeyId,fromPublic:id.publicKey,fromName:myName(),inviteHash:await p.hash(invite),nonce:p.random(32)});
       current.sealed=await vault.sealPeerDraft(key,id);current.response=response;current.label=chosenLabel;current.check=await p.checkCode(invite,response);current.stage='pair-response';
-      screen('Show this reply','Let the other phone scan this QR. Compare the check codes aloud, then scan its final pairing QR.',{scanning:true,check:current.check});await display(response);return;
+      screen('Show this reply','Let them scan this reply and compare codes. Then scan their final QR.',{scanning:true,check:current.check});await display(response);return;
     }
     if(current.stage==='pair-review'){
       const id=await vault.openPeerDraft(key,current.sealed),invite=current.invite,response=current.response;
@@ -160,24 +172,25 @@ export function createPeerUI({unlock,run,message,onChange,scan,canStart}){
     throw Error('This step has already been completed');
   }
   async function refresh(){
-    const container=$('peer-contacts');container.replaceChildren();
-    const contacts=await vault.peers();contacts.sort((a,b)=>a.label.localeCompare(b.label));
+    const container=$('peer-contact-select'),selected=container.value;container.replaceChildren();
+    contacts=await vault.peers();contacts.sort((a,b)=>a.label.localeCompare(b.label));
     for(const c of contacts){
-      const row=document.createElement('div');row.className='credential';
-      const name=document.createElement('strong');name.textContent=c.label;
-      const verify=document.createElement('button');verify.textContent='Verify';verify.addEventListener('click',()=>run(()=>startVerify(c)));
-      const remove=document.createElement('button');remove.className='secondary';remove.textContent='Forget';remove.addEventListener('click',()=>run(async()=>{if(state)throw Error('Finish the current exchange first');if(confirm('Forget '+c.label+'? Pair together again to recognise a replacement key. This does not remove your record from their phone.')){await vault.removePeer(c.peerId);await refresh();}}));
-      row.append(name,document.createElement('br'),verify,remove);container.append(row);
+      const option=document.createElement('option');option.value=c.peerId;option.textContent=c.label;container.append(option);
     }
-    if(!contacts.length)container.textContent='No paired people yet.';
+    if(contacts.some(c=>c.peerId===selected))container.value=selected;
+    $('peer-known').hidden=!contacts.length;$('peer-empty').hidden=!!contacts.length;
+    $('peer-new').open=!contacts.length;
+
   }
+  $('peer-verify').addEventListener('click',()=>run(async()=>{const c=contacts.find(c=>c.peerId===$('peer-contact-select').value);if(c)await startVerify(c);}));
+  $('peer-forget').addEventListener('click',()=>run(async()=>{if(state)throw Error('Finish the current exchange first');const c=contacts.find(c=>c.peerId===$('peer-contact-select').value);if(c&&confirm('Forget '+c.label+'? Pair together again to recognise a replacement key. This does not remove your record from their phone.')){await vault.removePeer(c.peerId);await refresh();}}));
   $('peer-start').addEventListener('click',()=>run(startPair));
   $('peer-approve').addEventListener('click',()=>run(approve));
   $('peer-scan').addEventListener('click',()=>run(scan));
   $('peer-scan-next').addEventListener('click',()=>run(scan));
   $('peer-read-paste').addEventListener('click',()=>run(async()=>{const text=$('peer-paste-text').value.trim();$('peer-paste-text').value='';await receive(text);}));
   $('peer-read-incoming').addEventListener('click',()=>run(async()=>{const text=$('peer-incoming').value.trim();$('peer-incoming').value='';await receive(text);}));
-  $('peer-finish').addEventListener('click',()=>run(async()=>{state=null;$('peer-flow').hidden=true;$('peer-qr').replaceChildren();$('peer-qr-text').value='';await onChange();}));
+  $('peer-finish').addEventListener('click',()=>run(async()=>{state=null;message('');$('peer-flow').hidden=true;$('peer-qr').replaceChildren();$('peer-qr-text').value='';await onChange();}));
   setInterval(()=>{if(!state)return;const left=Math.max(0,state.expiresAt-p.now());$('peer-countdown').textContent=left?'Expires in '+left+' seconds':'Expired — finish and start again';$('peer-approve').disabled=!left;if(!left){$('peer-qr').replaceChildren();$('peer-qr-text').value='';$('peer-scan-next').hidden=true;}},1000);
   return {receive,refresh,active:()=>!!state,clear:()=>{state=null;}};
 }

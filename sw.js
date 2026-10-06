@@ -1,5 +1,5 @@
 'use strict';
-const VERSION='0.1.0', CACHE='agauth-'+VERSION;
+const VERSION='0.1.1', CACHE='agauth-'+VERSION;
 const ASSETS=['./',
 'manifest.webmanifest',
 'config.js',

@@ -6,3 +6,44 @@
 #panel-register img{max-width:100%;height:auto;background:white;border-radius:8px}
 .peer-check{font-family:ui-monospace,monospace;font-size:clamp(1.1rem,5vw,1.8rem);font-weight:bold;letter-spacing:.04em;overflow-wrap:anywhere}
 .check-label{display:flex;align-items:flex-start;gap:.6rem}.check-label input{width:auto;margin-top:.45rem}
+
+/* Keep the People task together on a phone; expanded text remains scrollable. */
+header #open-info{margin:0;padding:.35rem .55rem;min-height:44px;margin-left:auto}
+.people-mode header,.camera-mode header{padding:.5rem .75rem;gap:.5rem;flex-wrap:wrap}
+.people-mode header strong,.camera-mode header strong{font-size:.95rem}
+.people-mode .badge,.camera-mode .badge{font-size:.7rem}
+.people-mode main,.camera-mode main{max-width:540px;padding:.5rem .75rem}
+.people-mode .app-intro,.people-mode footer,.camera-mode .app-intro,.camera-mode footer{display:none}
+.people-mode #message:empty,.camera-mode #message:empty{display:none}
+.people-mode #message,.camera-mode #message{margin:0 0 .4rem;font-size:.85rem;line-height:1.35;min-height:0}
+.people-mode .tabs{margin:0 0 .5rem}
+.people-mode .tabs button{flex:1;padding:.5rem;min-height:44px}
+.people-mode section,.camera-mode #camera{margin:0;padding:.75rem}
+.people-mode h2,.camera-mode h2{margin:0;font-size:1.15rem;line-height:1.25}
+.people-mode p{margin:.35rem 0;font-size:.9rem;line-height:1.35}
+.people-mode label{margin:.4rem 0 .2rem;font-size:.9rem}
+.people-mode button{min-height:44px;padding:.5rem .65rem;margin:.25rem 0;line-height:1.25}
+.people-mode input,.people-mode select{padding:.5rem;min-height:44px}
+.peer-actions{display:flex;gap:.5rem;margin:.35rem 0}
+.peer-actions>*{flex:1}
+.people-mode details{margin:.3rem 0;font-size:.8rem;line-height:1.3}
+.people-mode #peer-flow{display:flex;flex-direction:column;gap:.35rem}
+.people-mode #peer-flow p{margin:0}
+.people-mode #peer-countdown{font-size:.75rem;color:var(--fg);opacity:.8}
+.people-mode #peer-comparison{text-align:center}
+.people-mode #peer-check{font-size:clamp(1.1rem,5vw,1.5rem);line-height:1.4}
+.people-mode .check-label{margin:0;align-items:center;line-height:1.3}
+.people-mode .check-label input{min-height:0;flex:none;margin:0;width:22px;height:22px}
+.people-mode #peer-qr{width:min(100%,clamp(180px,calc(100dvh - 330px),320px))}
+.people-mode #peer-flow:has(#peer-comparison:not([hidden])) #peer-qr{width:min(100%,clamp(180px,calc(100dvh - 390px),300px))}
+.people-mode #peer-output details{margin:.25rem 0 0}
+.people-mode #peer-finish{font-size:.85rem}
+.camera-mode main>section:not(#camera),.camera-mode #phone-tabs{display:none!important}
+.camera-mode #camera video{display:block;height:calc(100dvh - 210px);max-height:520px;object-fit:cover;margin:.75rem 0}
+.camera-mode #stop-camera{display:block;width:100%;min-height:44px;margin:0}
+#info-dialog{max-width:540px;max-height:85dvh;overflow:auto}
+@media(max-height:600px){.people-mode #peer-flow{gap:.2rem}.people-mode section{padding:.5rem}}
+.people-mode #peer-home:has(#peer-new[open]) #peer-known{display:none}.people-mode #peer-new summary{font-size:.95rem;padding:.35rem 0;min-height:44px}
+.people-mode:has(#peer-flow:not([hidden])) header .badge{display:none}
+.peer-flow-actions{display:flex;gap:.5rem}.peer-flow-actions button{flex:1}
+.people-mode #peer-title{overflow-wrap:anywhere}

@@ -1,44 +1,41 @@
-# Airgap Authenticator
+# Airgap Auth App
 
-### Your phone is the second factor. No network required.
+**Your phone is your offline authenticator.**
 
-A PWA authenticator that works entirely offline. Install it on your phone, create an encrypted vault, and authenticate by scanning QR codes. Your phone never connects to the server — not during pairing, not during login, not ever.
+Scan a QR code, approve on your phone, and check who you're connecting to. Once the app is installed and ready, authentication works without Wi-Fi, mobile data or Bluetooth.
 
----
+**[Open the app](https://idltd.github.io/airgap-auth-app/)**
 
-**Works offline from day one.** After installation the app runs from its service worker cache. Disable Wi-Fi, turn off mobile data, enable airplane mode — authentication still works. The camera is the only channel.
+## Get started
 
-**Two modes of operation:**
+1. Open the app on your Android phone in Chrome, Brave or Edge.
+2. Create your vault. A passkey uses your phone's fingerprint, face or screen lock to protect saved keys.
+3. Use your browser's **Install app** or **Add to home screen** option.
+4. Wait for **Offline ready** before going offline.
 
-- **Website login** — Pair with any site running [Airgap Auth](https://github.com/idltd/airgap-auth). Scan a challenge QR, approve on the phone, exchange two codes. The server never sees your private key.
+It's a progressive web app (PWA), so you don't need an APK or an app-store download.
 
-- **Phone-to-phone verification** — Two people pair their phones face-to-face, then verify each other any time later. No server involved at any stage. Each phone proves it still holds the key established during pairing.
+## Two things you can do
 
-**Encrypted by default.** Every credential is independently encrypted with AES-256-GCM. The vault key is derived from a WebAuthn passkey using PRF, or from a passphrase via PBKDF2 (600,000 iterations) in demo mode. Nothing leaves the device unencrypted.
+**Sign in to a website.** Open Websites, scan its QR code, approve and exchange the short codes. The website needs the companion [Airgap Auth Server](https://github.com/idltd/airgap-auth-server), which is a private repository.
 
-**Zero dependencies.** Plain HTML, CSS and JavaScript. No framework, no bundler, no npm. The QR libraries are vendored locally — no CDN requests, no external fonts, no telemetry.
+**Pair with another person.** Open People and start pairing, or scan their phone. Follow each step and compare the full check code on both screens before saving. Later, select the saved contact and choose **Verify contact**. Either phone can start.
 
----
+The People flow groups each step onto a compact phone screen. While scanning, the camera takes over that screen. QR text is available when you need an alternative to the camera.
 
-## Install
+## A few things to know
 
-Open this page on your phone in Chrome, Brave or Edge. Create your vault, then use your browser's *Install* or *Add to home screen* option. Wait for **Offline ready** before going offline.
+- Pair people in person and compare both check codes carefully. Verification checks the keys you paired; it doesn't independently establish someone's identity.
+- Clearing browser data or losing your phone loses its saved keys. There is currently no backup or export.
+- The demo passphrase option has lower assurance than a passkey vault.
+- Open **Info** in the app for security, storage and update details.
 
-## Try the full login flow
+## For developers
 
-The authenticator is one half — the other half is a website running the [Airgap Auth](https://github.com/idltd/airgap-auth) server. To try it locally:
+Plain HTML, CSS and JavaScript. No framework, bundler or npm install. Camera decoding and QR generation are bundled locally; the app makes no CDN requests.
 
-```sh
-git clone https://github.com/idltd/airgap-auth.git && cd airgap-auth
-export SERVER_MASTER_KEY_B64=$(openssl rand -base64 32)
-export RP_ORIGINS=http://localhost:3000 ALLOW_LOCAL_HTTP=true
-go run ./cmd/airgap-auth
-```
+Serve this directory over HTTPS (or localhost for development). GitHub Pages publishes it through [.github/workflows/pages.yml](.github/workflows/pages.yml). Keep the phone app and authentication server on separate origins.
 
-## Security
-
-See the [threat model](https://github.com/idltd/airgap-auth/blob/main/docs/threat-model.md). This is a working demonstrator of the protocol, not a certified product.
-
-## Licence
+When changing cached files, update the version in both `config.js` and `sw.js`. Existing installations offer **Update and reload** after checking online.
 
 Copyright ID Ltd. All rights reserved.
